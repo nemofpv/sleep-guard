@@ -88,6 +88,8 @@ scripts/build.sh    # build/SleepGuard.app
 
 Neither touches the real power settings. Running the app does.
 
+GitHub Actions runs both on every push that changes the sources, tests, scripts or icon. Pushes that only touch documentation are skipped.
+
 | Path | Contents |
 |---|---|
 | `Sources/SleepGuard/Policy.swift` | The decisions: parsing, expiry arithmetic, what each 15-second tick should do. No I/O. |
