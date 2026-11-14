@@ -10,16 +10,16 @@ Requires macOS 13 or later.
 
 ## Install
 
-Every release is a universal build for Apple silicon and Intel. Download `SleepGuard-<version>.zip` from the [latest release](https://github.com/nemofpv/sleep-guard/releases/latest), or fetch it with the GitHub CLI:
+Download `SleepGuard-<version>.dmg` from the [latest release](https://github.com/nemofpv/sleep-guard/releases/latest), open it, and drag SleepGuard onto the Applications folder next to it. Every release is a universal build for Apple silicon and Intel.
+
+With the GitHub CLI:
 
 ```sh
-gh release download --repo nemofpv/sleep-guard --pattern '*.zip'
-unzip SleepGuard-*.zip
-mv SleepGuard.app /Applications/
-open /Applications/SleepGuard.app
+gh release download --repo nemofpv/sleep-guard --pattern '*.dmg'
+open SleepGuard-*.dmg
 ```
 
-A zip downloaded with a browser is quarantined, and the app is signed ad hoc rather than notarized. Clear the quarantine once before opening it:
+A disk image downloaded with a browser is quarantined, and the app is signed ad hoc rather than notarized. Clear the quarantine once after copying the app, before opening it:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/SleepGuard.app
@@ -84,11 +84,12 @@ While it is on, the icon is a coffee cup with the time left, and the menu offers
 ```sh
 scripts/test.sh     # policy tests, then enforce.sh against a fake pmset
 scripts/build.sh    # build/SleepGuard.app
+scripts/package.sh  # build/SleepGuard-<version>.dmg from the built app
 ```
 
 Neither touches the real power settings. Running the app does.
 
-GitHub Actions runs both on every push that changes the sources, tests, scripts or icon. Pushes that only touch documentation are skipped.
+GitHub Actions runs all three on every push that changes the sources, tests, scripts, icon or disk image layout. Pushes that only touch documentation are skipped.
 
 | Path | Contents |
 |---|---|
@@ -97,6 +98,7 @@ GitHub Actions runs both on every push that changes the sources, tests, scripts 
 | `scripts/enforce.sh` | The backstop that the LaunchDaemon runs as root. |
 | `scripts/install.sh`, `uninstall.sh` | Set up and remove the sudoers rule and the backstop. |
 | `scripts/make-icon.swift` | Rebuilds `Resources/AppIcon.png` from `Resources/icon-source.jpg`. |
+| `scripts/make-dmg-layout.py` | Rebuilds `Resources/dmg-layout`, the window layout of the disk image. |
 | `Tests/` | The test programs that `scripts/test.sh` runs. |
 
 ## Releasing
@@ -104,11 +106,11 @@ GitHub Actions runs both on every push that changes the sources, tests, scripts 
 A release is published when a version tag is pushed. Pushing commits alone never publishes one.
 
 ```sh
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
-The Release workflow runs the tests, builds the universal app with that version number, and publishes `SleepGuard-1.1.0.zip` with a SHA-256 checksum on the [releases page](https://github.com/nemofpv/sleep-guard/releases). Running the workflow by hand from the Actions tab does a dry run: the same build, kept as a workflow artifact, with nothing published.
+The Release workflow runs the tests, builds the universal app with that version number, and publishes `SleepGuard-1.2.0.dmg` with a SHA-256 checksum on the [releases page](https://github.com/nemofpv/sleep-guard/releases). Running the workflow by hand from the Actions tab does a dry run: the same build, kept as a workflow artifact, with nothing published.
 
 ## License
 
