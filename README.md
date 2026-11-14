@@ -10,7 +10,7 @@ Requires macOS 13 or later.
 
 ## Install
 
-From a release:
+Every release is a universal build for Apple silicon and Intel. Download `SleepGuard-<version>.zip` from the [latest release](https://github.com/nemofpv/sleep-guard/releases/latest), or fetch it with the GitHub CLI:
 
 ```sh
 gh release download --repo nemofpv/sleep-guard --pattern '*.zip'
@@ -101,11 +101,15 @@ GitHub Actions runs both on every push that changes the sources, tests, scripts 
 
 ## Releasing
 
-Push a version tag:
+A release is published when a version tag is pushed. Pushing commits alone never publishes one.
 
 ```sh
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
-The Release workflow runs the tests, builds a universal (Apple silicon and Intel) app with that version, and publishes `SleepGuard-1.0.0.zip` with a SHA-256 checksum as a GitHub release. Running the workflow by hand from the Actions tab does a dry run: the same build, kept as a workflow artifact, with nothing published.
+The Release workflow runs the tests, builds the universal app with that version number, and publishes `SleepGuard-1.1.0.zip` with a SHA-256 checksum on the [releases page](https://github.com/nemofpv/sleep-guard/releases). Running the workflow by hand from the Actions tab does a dry run: the same build, kept as a workflow artifact, with nothing published.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
