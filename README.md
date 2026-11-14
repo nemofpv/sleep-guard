@@ -62,7 +62,7 @@ Click the menu bar icon and pick how long to stay awake:
 | Keep awake overnight | the next 07:00 |
 | Keep awake indefinitely | you turn it off |
 
-While it is on, the icon is a coffee cup with the time left, and the menu offers **Allow sleep now**, **Extend +1h / +2h** and a switch to or from indefinitely.
+While it is on, the icon is a coffee cup with the time left, and the menu offers **Allow sleep now**, **Extend +1h / +2h** and a switch to or from indefinitely. **Allow sleep now** ends the keep-awake and leaves SleepGuard running. **Quit** only closes the app.
 
 **Allow sleep when unplugged** (on by default) ends keep-awake within 15 seconds of the Mac going onto battery. While it is checked and the Mac is on battery, the keep-awake choices are greyed out.
 
@@ -75,8 +75,7 @@ While it is on, the icon is a coffee cup with the time left, and the menu offers
 | You run `sudo pmset -a disablesleep 0` during a keep-awake | SleepGuard notices within 15 seconds, discards the expiry and notes it in the menu. A later manual enable starts fresh. |
 | The expiry passes | Sleep is re-enabled by the app, or by the backstop within 5 minutes if the app is not running. |
 | The expiry passes and the sudoers rule is not installed | macOS asks for an admin password. If nobody answers or the prompt is cancelled, the icon becomes a warning triangle and SleepGuard asks again every 5 minutes. **Allow sleep now** retries at once. |
-| You quit SleepGuard during a keep-awake | With the backstop installed the expiry is still enforced. Without it, Quit re-enables sleep first. |
-| SleepGuard crashes or is force-quit, no backstop | Sleep stays disabled until SleepGuard runs again. This is the case the backstop exists for. |
+| You quit SleepGuard during a keep-awake, or it crashes | Quitting never changes the sleep setting. With the backstop installed the expiry is still enforced. Without it, sleep stays disabled until SleepGuard runs again and picks the expiry back up. This is the case the backstop exists for. |
 | `/Users/Shared/SleepGuard/expires-at` is deleted or holds anything but a timestamp | It counts as "no expiry". The app assigns the default expiry; if the app is not running, the backstop re-enables sleep. |
 
 ## Development
