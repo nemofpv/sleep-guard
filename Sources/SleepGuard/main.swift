@@ -197,7 +197,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateButton()
         menu.removeAllItems()
 
+        // The first line carries the same symbol as the menu bar item.
         let status: String
+        let statusSymbol: String
         switch state {
         case true?:
             let exp = readExpiry()
@@ -206,30 +208,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             } else {
                 status = "Sleep DISABLED" + (exp.map { " until \(timeFormat.string(from: $0)) (\(formatRemaining($0.timeIntervalSinceNow)) left)" } ?? "")
             }
-        case false?: status = "Sleep allowed (normal)"
-        case nil: status = "Could not read pmset state"
+            statusSymbol = "cup.and.saucer.fill"
+        case false?:
+            status = "Sleep allowed (normal)"
+            statusSymbol = "moon.zzz"
+        case nil:
+            status = "Could not read pmset state"
+            statusSymbol = "questionmark.circle"
         }
-        menu.addItem(info(status))
-        if let lastMessage { menu.addItem(info(lastMessage)) }
+        menu.addItem(info(status, statusSymbol))
+        if let lastMessage { menu.addItem(info(lastMessage, retryNotBefore == nil ? "info.circle" : "exclamationmark.triangle")) }
         menu.addItem(.separator())
 
         if state == true {
-            menu.addItem(action("Allow sleep now", #selector(turnOff)))
+            menu.addItem(action("Allow sleep now", "moon.zzz", #selector(turnOff)))
             if let exp = readExpiry(), isIndefinite(exp) {
-                menu.addItem(action("Switch to until \(timeFormat.string(from: defaultExpiry(now: Date())))", #selector(keepAwakeDefault)))
+                menu.addItem(action("Switch to until \(timeFormat.string(from: defaultExpiry(now: Date())))", "clock", #selector(keepAwakeDefault)))
             } else {
-                for h in [1, 2] { menu.addItem(action("Extend +\(h)h", #selector(extend(_:)), tag: h)) }
-                menu.addItem(action("Keep awake indefinitely", #selector(keepAwakeIndefinitely)))
+                for h in [1, 2] { menu.addItem(action("Extend +\(h)h", "plus.circle", #selector(extend(_:)), tag: h)) }
+                menu.addItem(action("Keep awake indefinitely", "infinity", #selector(keepAwakeIndefinitely)))
             }
         } else {
             // On battery with the preference on, the next tick would turn a keep-awake straight
             // back off, so the menu does not offer one.
             let blocked = offOnBattery && onBattery()
-            if blocked { menu.addItem(info("On battery: uncheck “Allow sleep when unplugged” to keep awake")) }
-            var items = [action("Keep awake until \(timeFormat.string(from: defaultExpiry(now: Date())))", #selector(keepAwakeDefault))]
-            for h in [1, 2, 4] { items.append(action("Keep awake for \(h)h", #selector(keepAwakeHours(_:)), tag: h)) }
-            items.append(action("Keep awake overnight (until 0\(morningHour):00)", #selector(keepAwakeOvernight)))
-            items.append(action("Keep awake indefinitely", #selector(keepAwakeIndefinitely)))
+            if blocked { menu.addItem(info("On battery: uncheck “Allow sleep when unplugged” to keep awake", "battery.25")) }
+            var items = [action("Keep awake until \(timeFormat.string(from: defaultExpiry(now: Date())))", "cup.and.saucer", #selector(keepAwakeDefault))]
+            for h in [1, 2, 4] { items.append(action("Keep awake for \(h)h", "timer", #selector(keepAwakeHours(_:)), tag: h)) }
+            items.append(action("Keep awake overnight (until 0\(morningHour):00)", "moon.stars", #selector(keepAwakeOvernight)))
+            items.append(action("Keep awake indefinitely", "infinity", #selector(keepAwakeIndefinitely)))
             for i in items {
                 i.isEnabled = !blocked
                 menu.addItem(i)
@@ -237,22 +244,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        let battery = action("Allow sleep when unplugged", #selector(toggleBattery))
+        let battery = action("Allow sleep when unplugged", "powerplug", #selector(toggleBattery))
         battery.state = offOnBattery ? .on : .off
         menu.addItem(battery)
         menu.addItem(.separator())
         let quitTitle = state != true ? "Quit" : backstopInstalled ? "Quit (expiry is still enforced)" : "Quit and allow sleep"
-        menu.addItem(action(quitTitle, #selector(quit), key: "q"))
+        menu.addItem(action(quitTitle, "power", #selector(quit), key: "q"))
     }
 
-    private func info(_ title: String) -> NSMenuItem {
+    /// An SF Symbol for a menu row. A name this macOS does not know gives no image, which is harmless.
+    private func symbolImage(_ name: String) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)
+    }
+
+    private func info(_ title: String, _ symbol: String) -> NSMenuItem {
         let i = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        i.image = symbolImage(symbol)
         i.isEnabled = false
         return i
     }
 
-    private func action(_ title: String, _ sel: Selector, tag: Int = 0, key: String = "") -> NSMenuItem {
+    private func action(_ title: String, _ symbol: String, _ sel: Selector, tag: Int = 0, key: String = "") -> NSMenuItem {
         let i = NSMenuItem(title: title, action: sel, keyEquivalent: key)
+        i.image = symbolImage(symbol)
         i.target = self
         i.tag = tag
         return i
