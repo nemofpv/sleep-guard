@@ -23,7 +23,7 @@ id "$TARGET_USER" >/dev/null 2>&1 || { echo "No such user: $TARGET_USER" >&2; ex
 HERE=$(cd "$(dirname "$0")" && pwd)
 SUDOERS=/etc/sudoers.d/sleepguard
 SUPPORT_DIR="/Library/Application Support/SleepGuard"
-LABEL=local.sleepguard.enforce          # main.swift looks for this plist to know the backstop exists
+LABEL=local.sleepguard.enforce          # uninstall.sh removes the daemon by this label
 PLIST=/Library/LaunchDaemons/$LABEL.plist
 
 # 1. The sudoers rule. Checked before it goes live: a broken file in sudoers.d breaks sudo itself.

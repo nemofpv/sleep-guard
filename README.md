@@ -45,7 +45,7 @@ sudo /Applications/SleepGuard.app/Contents/Resources/install.sh
 From a checkout the same script is `sudo scripts/install.sh`. It installs two things:
 
 - **A sudoers rule** in `/etc/sudoers.d/sleepguard` that lets your user run exactly two commands without a password: `pmset -a disablesleep 0` and `pmset -a disablesleep 1`. Nothing else becomes passwordless.
-- **A backstop** in `/Library/LaunchDaemons/local.sleepguard.enforce.plist` that checks every 5 minutes as root and re-enables sleep once the expiry has passed. With it, the expiry holds even if the app has quit or crashed.
+- **A backstop** in `/Library/LaunchDaemons/local.sleepguard.enforce.plist` that checks every 5 minutes as root and re-enables sleep once the expiry has passed. With it, the expiry holds even if the app has crashed or been force-quit.
 
 The rule is for the user who ran `sudo`; to set it up for someone else, pass the user name: `sudo …/install.sh alice`.
 
@@ -75,8 +75,8 @@ While it is on, the icon is a coffee cup with the time left, and the menu offers
 | You run `sudo pmset -a disablesleep 0` during a keep-awake | SleepGuard notices within 15 seconds, discards the expiry and notes it in the menu. A later manual enable starts fresh. |
 | The expiry passes | Sleep is re-enabled by the app, or by the backstop within 5 minutes if the app is not running. |
 | The expiry passes and the sudoers rule is not installed | macOS asks for an admin password. If nobody answers or the prompt is cancelled, the icon becomes a warning triangle and SleepGuard asks again every 5 minutes. **Allow sleep now** retries at once. |
-| You quit SleepGuard during a keep-awake | With the backstop installed the expiry is still enforced. Without it, Quit re-enables sleep first. |
-| SleepGuard crashes or is force-quit, no backstop | Sleep stays disabled until SleepGuard runs again. This is the case the backstop exists for. |
+| You quit SleepGuard during a keep-awake | The menu item reads **Quit and allow sleep**: sleep is re-enabled, then the app closes. If sleep cannot be re-enabled, the app stays open and the menu says why. |
+| SleepGuard crashes or is force-quit during a keep-awake | With the backstop installed the expiry is still enforced. Without it, sleep stays disabled until SleepGuard runs again and picks the expiry back up. This is the case the backstop exists for. |
 | `/Users/Shared/SleepGuard/expires-at` is deleted or holds anything but a timestamp | It counts as "no expiry". The app assigns the default expiry; if the app is not running, the backstop re-enables sleep. |
 
 ## Development

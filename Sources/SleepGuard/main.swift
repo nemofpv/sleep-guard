@@ -12,8 +12,6 @@ import IOKit.ps
 let pmsetPath = "/usr/bin/pmset"
 let sharedDir = "/Users/Shared/SleepGuard"
 let expiryPath = sharedDir + "/expires-at"
-/// Written by scripts/install.sh. When it exists, enforce.sh runs whether or not this app does.
-let backstopPlist = "/Library/LaunchDaemons/local.sleepguard.enforce.plist"
 /// How long to wait after an automatic turn-off failed before trying, and possibly prompting, again.
 let autoOffRetryInterval: TimeInterval = 5 * 60
 
@@ -95,8 +93,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         get { UserDefaults.standard.object(forKey: "offOnBattery") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "offOnBattery") }
     }
-
-    private var backstopInstalled: Bool { FileManager.default.fileExists(atPath: backstopPlist) }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -248,8 +244,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         battery.state = offOnBattery ? .on : .off
         menu.addItem(battery)
         menu.addItem(.separator())
-        let quitTitle = state != true ? "Quit" : backstopInstalled ? "Quit (expiry is still enforced)" : "Quit and allow sleep"
-        menu.addItem(action(quitTitle, "power", #selector(quit), key: "q"))
+        menu.addItem(action(state == true ? "Quit and allow sleep" : "Quit", "power", #selector(quit), key: "q"))
     }
 
     /// An SF Symbol for a menu row. A name this macOS does not know gives no image, which is harmless.
@@ -290,9 +285,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     @objc private func toggleBattery() { offOnBattery.toggle(); tick() }
     @objc private func quit() {
-        // With no backstop installed, nothing enforces the expiry once this app is gone, so sleep
-        // goes back on first. If that fails the app stays, and the menu says why.
-        if readSleepDisabled() == true, !backstopInstalled, !setOff(nil) { return }
+        // Quitting always ends a keep-awake, whether or not the backstop is installed.
+        // If sleep cannot be re-enabled the app stays, and the menu says why.
+        if readSleepDisabled() == true, !setOff(nil) { return }
         NSApp.terminate(nil)
     }
 }
