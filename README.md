@@ -53,16 +53,22 @@ To undo both: `sudo /Applications/SleepGuard.app/Contents/Resources/uninstall.sh
 
 ## Using it
 
-Click the menu bar icon and pick how long to stay awake:
+Click the menu bar icon. The top of the menu says what the Mac is doing; under **Keep awake**, pick how long to stay awake:
 
 | Choice | Lasts until |
 |---|---|
-| Keep awake until 23:00 | tonight's cutoff; between 23:00 and 07:00 this is 2 hours instead |
-| Keep awake for 1h / 2h / 4h | that long from now |
-| Keep awake overnight | the next 07:00 |
-| Keep awake indefinitely | you turn it off |
+| Until tonight, 23:00 | tonight's cutoff. Not offered between 23:00 and 07:00, when it would be the same as 2 hours |
+| For 1 hour / 2 hours / 4 hours | that long from now |
+| Until morning, 07:00 | the next 07:00 |
+| Indefinitely | you turn it off |
 
-While it is on, the icon is a coffee cup with the time left, and the menu offers **Allow sleep now**, **Extend +1h / +2h** and a switch to or from indefinitely. **Allow sleep now** ends the keep-awake and leaves SleepGuard running.
+While it is on, the menu bar icon is a coffee cup with the time left, and the menu changes to:
+
+- **Allow sleep now** ends the keep-awake and leaves SleepGuard running.
+- **Add 1 hour / Add 2 hours** push the end time back.
+- **Change to** opens the same list of choices, to replace the end time without stopping first.
+
+Gold icons keep the Mac awake, blue ones let it sleep. The bottom of the menu shows the installed version.
 
 **Allow sleep when unplugged** (on by default) ends keep-awake within 15 seconds of the Mac going onto battery. While it is checked and the Mac is on battery, the keep-awake choices are greyed out.
 
@@ -70,7 +76,7 @@ While it is on, the icon is a coffee cup with the time left, and the menu offers
 
 | Situation | Result |
 |---|---|
-| You run `sudo pmset -a disablesleep 1` in a terminal | Within 15 seconds SleepGuard adopts it and gives it the default expiry, as if you had picked "Keep awake until 23:00". On battery with "Allow sleep when unplugged" checked, it is turned off instead. |
+| You run `sudo pmset -a disablesleep 1` in a terminal | Within 15 seconds SleepGuard adopts it and gives it the default expiry, as if you had picked "Until tonight, 23:00". On battery with "Allow sleep when unplugged" checked, it is turned off instead. |
 | The same, but SleepGuard is not running | With the backstop installed, sleep is re-enabled within about 5 minutes. Without it, sleep stays disabled until SleepGuard is next started, which then adopts it. |
 | You run `sudo pmset -a disablesleep 0` during a keep-awake | SleepGuard notices within 15 seconds, discards the expiry and notes it in the menu. A later manual enable starts fresh. |
 | The expiry passes | Sleep is re-enabled by the app, or by the backstop within 5 minutes if the app is not running. |
@@ -95,6 +101,7 @@ GitHub Actions runs all three on every push that changes the sources, tests, scr
 |---|---|
 | `Sources/SleepGuard/Policy.swift` | The decisions: parsing, expiry arithmetic, what each 15-second tick should do. No I/O. |
 | `Sources/SleepGuard/main.swift` | The menu and the I/O: `pmset`, the expiry file, the power source. |
+| `Sources/SleepGuard/MenuLook.swift` | How the menu looks: the badge icons, their colours, the status block at the top. |
 | `scripts/enforce.sh` | The backstop that the LaunchDaemon runs as root. |
 | `scripts/install.sh`, `uninstall.sh` | Set up and remove the sudoers rule and the backstop. |
 | `scripts/make-icon.swift` | Rebuilds `Resources/AppIcon.png` from `Resources/icon-source.jpg`. |

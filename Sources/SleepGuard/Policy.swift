@@ -33,11 +33,16 @@ func nextOccurrence(ofHour hour: Int, after now: Date, calendar: Calendar = .cur
     return today > now ? today : calendar.date(byAdding: .day, value: 1, to: today)!
 }
 
-/// Plain "keep awake" lasts until this evening's cutoff; late at night it is only 2 hours,
+/// From the evening cutoff until the morning hour.
+func isNight(now: Date, calendar: Calendar = .current) -> Bool {
+    let hour = calendar.component(.hour, from: now)
+    return hour >= eveningCutoffHour || hour < morningHour
+}
+
+/// Plain "keep awake" lasts until this evening's cutoff; at night it is only 2 hours,
 /// so a forgotten toggle never runs through the night.
 func defaultExpiry(now: Date, calendar: Calendar = .current) -> Date {
-    let hour = calendar.component(.hour, from: now)
-    if hour >= eveningCutoffHour || hour < morningHour { return now.addingTimeInterval(2 * 3600) }
+    if isNight(now: now, calendar: calendar) { return now.addingTimeInterval(2 * 3600) }
     return nextOccurrence(ofHour: eveningCutoffHour, after: now, calendar: calendar)
 }
 

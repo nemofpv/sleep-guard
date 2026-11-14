@@ -61,6 +61,12 @@ expect(defaultExpiry(now: at(23), calendar: helsinki), at(1, day: 15), "23:00 sh
 expect(defaultExpiry(now: at(3, 15), calendar: helsinki), at(5, 15), "small hours: 2 hours, not until 23:00")
 expect(defaultExpiry(now: at(6, 59), calendar: helsinki), at(8, 59), "06:59 is still night: 2 hours")
 
+// The menu hides "Until tonight" at night, because the default is then the same as "For 2 hours".
+expect(isNight(now: at(22, 59), calendar: helsinki), false, "22:59 is still evening")
+expect(isNight(now: at(23), calendar: helsinki), true, "23:00 sharp is night")
+expect(isNight(now: at(6, 59), calendar: helsinki), true, "06:59 is still night")
+expect(isNight(now: at(7), calendar: helsinki), false, "07:00 sharp is morning")
+
 expect(nextOccurrence(ofHour: 7, after: at(22), calendar: helsinki), at(7, day: 15), "overnight from the evening ends tomorrow 07:00")
 expect(nextOccurrence(ofHour: 7, after: at(3), calendar: helsinki), at(7), "overnight from the small hours ends today 07:00")
 expect(nextOccurrence(ofHour: 7, after: at(7), calendar: helsinki), at(7, day: 15), "at 07:00 sharp the next 07:00 is tomorrow")
