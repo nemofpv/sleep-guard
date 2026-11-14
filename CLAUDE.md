@@ -49,7 +49,7 @@ The invariant is: sleep disabled ⇒ an unexpired expiry exists. Either side can
 Change these together:
 
 - **Expiry path and format**: `main.swift`, `parseExpiry` in `Policy.swift`, and `read_expiry` in `enforce.sh`. Both parsers must accept exactly the same strings. "Indefinitely" is the timestamp `253402300799` (year 9999) so that neither needs a special case.
-- **Backstop location**: the LaunchDaemon label `local.sleepguard.enforce` appears in `install.sh`, `uninstall.sh`, and `backstopPlist` in `main.swift`. The app checks that the plist exists only to decide whether the Quit item may say "expiry is still enforced". Quit itself never changes the sleep setting; stopping a keep-awake is the separate "Allow sleep now" item, and the two stay separate.
+- **Backstop location**: the LaunchDaemon label `local.sleepguard.enforce` appears in `install.sh`, `uninstall.sh`, and `backstopPlist` in `main.swift`. The app checks that the plist exists to decide whether Quit must re-enable sleep first.
 - **Timing**: the app ticks every 15 s; `enforce.sh` waits `GRACE_SECONDS=20` before overriding a `disablesleep` that has no expiry, so that a running app can adopt it first. The grace must stay longer than the tick.
 
 ### Ordering that must be preserved

@@ -169,13 +169,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// `automatic` marks a turn-off the user did not ask for just now; if it fails it is retried
     /// after `autoOffRetryInterval` rather than on the next tick.
-    private func setOff(_ reason: String?, automatic: Bool = false) {
+    @discardableResult
+    private func setOff(_ reason: String?, automatic: Bool = false) -> Bool {
         writing = true
         defer { writing = false }
         let why = automatic
             ? "SleepGuard: the keep-awake period is over. Allow this Mac to sleep again."
             : "SleepGuard wants to let this Mac sleep again."
-        if writeSleepDisabled(false, why: why) {
+        let ok = writeSleepDisabled(false, why: why)
+        if ok {
             writeExpiry(nil)
             retryNotBefore = nil
             lastMessage = reason.map { "\($0) → sleep allowed" }
@@ -185,6 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         state = readSleepDisabled()
         updateButton()
+        return ok
     }
 
     // MARK: menu
@@ -238,9 +241,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         battery.state = offOnBattery ? .on : .off
         menu.addItem(battery)
         menu.addItem(.separator())
-        // Quit only quits; stopping a keep-awake is "Allow sleep now". The reassurance is shown
-        // only when it is true, i.e. when the backstop is there to enforce the expiry.
-        let quitTitle = state == true && backstopInstalled ? "Quit (expiry is still enforced)" : "Quit"
+        let quitTitle = state != true ? "Quit" : backstopInstalled ? "Quit (expiry is still enforced)" : "Quit and allow sleep"
         menu.addItem(action(quitTitle, #selector(quit), key: "q"))
     }
 
@@ -274,7 +275,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateButton()
     }
     @objc private func toggleBattery() { offOnBattery.toggle(); tick() }
-    @objc private func quit() { NSApp.terminate(nil) }
+    @objc private func quit() {
+        // With no backstop installed, nothing enforces the expiry once this app is gone, so sleep
+        // goes back on first. If that fails the app stays, and the menu says why.
+        if readSleepDisabled() == true, !backstopInstalled, !setOff(nil) { return }
+        NSApp.terminate(nil)
+    }
 }
 
 let app = NSApplication.shared
