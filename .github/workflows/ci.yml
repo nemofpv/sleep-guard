@@ -1,0 +1,38 @@
+name: CI
+
+# Runs the tests and a universal build on every push that can change the app or the test
+# results. Pushes that touch only other files (documentation, the icon artwork, the release
+# workflow) are skipped: they cannot change the outcome, and macOS runners are billed at ten
+# times the Linux rate on private repositories.
+#
+# A new file or folder that the build or the tests read must be added to `paths`.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'scripts/**'
+      - 'Resources/AppIcon.png'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Test
+        run: scripts/test.sh
+
+      - name: Build
+        run: UNIVERSAL=1 scripts/build.sh

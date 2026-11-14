@@ -4,8 +4,7 @@ name: Release
 # it as a GitHub release. Running the workflow by hand does the same build without publishing:
 # the zip is attached to the run as an artifact instead.
 #
-# macOS runners are billed at ten times the Linux rate on private repositories, so this runs
-# on tags only, not on every push.
+# Ordinary pushes are checked by ci.yml.
 
 on:
   push:
