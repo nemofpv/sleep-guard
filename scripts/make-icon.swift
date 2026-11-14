@@ -3,7 +3,10 @@
 // canvas with the usual soft shadow, so it sits correctly next to other icons in Finder.
 // build.sh makes the .icns from the result; rerun this only when the artwork changes.
 //
-// Usage: swift scripts/make-icon.swift Resources/icon-source.jpg Resources/AppIcon.png
+// Usage: swift scripts/make-icon.swift Resources/icon-source.jpg Resources/AppIcon.png [zoom]
+//
+// `zoom` enlarges the artwork inside the icon shape, cropping its margins towards `focus`.
+// 1 shows the whole image; the default is what the committed icon was made with.
 
 import CoreGraphics
 import Foundation
@@ -14,8 +17,13 @@ func fail(_ message: String) -> Never {
     exit(1)
 }
 
+let defaultZoom = 1.3
+/// The centre of the subject, as fractions of the artwork measured from its top-left corner.
+let focus = CGPoint(x: 0.5, y: 0.43)
+
 let args = CommandLine.arguments
-guard args.count == 3 else { fail("usage: swift make-icon.swift <artwork> <out.png>") }
+guard args.count == 3 || args.count == 4 else { fail("usage: swift make-icon.swift <artwork> <out.png> [zoom]") }
+guard let zoom = args.count == 4 ? Double(args[3]) : defaultZoom, zoom >= 1 else { fail("zoom must be a number, 1 or more") }
 
 guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: args[1]) as CFURL, nil),
       let artwork = CGImageSourceCreateImageAtIndex(source, 0, nil) else { fail("cannot read \(args[1])") }
@@ -49,7 +57,12 @@ ctx.beginTransparencyLayer(auxiliaryInfo: nil)
 ctx.addPath(shape)
 ctx.clip()
 ctx.interpolationQuality = .high
-ctx.draw(artwork, in: box)
+// The zoomed artwork is placed so that `focus` sits at the centre of the shape, then nudged
+// back if that would leave part of the shape uncovered.
+let drawn = CGSize(width: box.width * CGFloat(zoom), height: box.height * CGFloat(zoom))
+let x = min(box.minX, max(box.maxX - drawn.width, box.midX - focus.x * drawn.width))
+let y = min(box.minY, max(box.maxY - drawn.height, box.midY - (1 - focus.y) * drawn.height))
+ctx.draw(artwork, in: CGRect(origin: CGPoint(x: x, y: y), size: drawn))
 ctx.endTransparencyLayer()
 
 guard let icon = ctx.makeImage(),
