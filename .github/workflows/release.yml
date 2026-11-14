@@ -1,0 +1,61 @@
+name: Release
+
+# Pushing a tag such as v1.2.0 runs the tests, builds a universal SleepGuard.app and publishes
+# it as a GitHub release. Running the workflow by hand does the same build without publishing:
+# the zip is attached to the run as an artifact instead.
+#
+# macOS runners are billed at ten times the Linux rate on private repositories, so this runs
+# on tags only, not on every push.
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Test
+        run: scripts/test.sh
+
+      - name: Build and package
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then version=${GITHUB_REF_NAME#v}; else version=0.0.0; fi
+          VERSION=$version UNIVERSAL=1 scripts/build.sh
+          cd build
+          ditto -c -k --keepParent SleepGuard.app "SleepGuard-$version.zip"
+          shasum -a 256 "SleepGuard-$version.zip" > "SleepGuard-$version.zip.sha256"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Keep the dry-run build
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v7
+        with:
+          name: SleepGuard-dry-run
+          path: build/SleepGuard-*.zip*
+          if-no-files-found: error
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > build/notes.md <<'EOF'
+          Unzip and move `SleepGuard.app` to `/Applications`. The app is signed ad hoc, not notarized, so clear the download quarantine once:
+
+          ```sh
+          xattr -dr com.apple.quarantine /Applications/SleepGuard.app
+          ```
+
+          To stop the admin password prompts: `sudo /Applications/SleepGuard.app/Contents/Resources/install.sh`
+          EOF
+          gh release create "$GITHUB_REF_NAME" \
+            "build/SleepGuard-$VERSION.zip" "build/SleepGuard-$VERSION.zip.sha256" \
+            --title "SleepGuard $VERSION" --verify-tag --generate-notes --notes-file build/notes.md
