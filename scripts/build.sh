@@ -23,6 +23,17 @@ else
   compile "$(uname -m)" "$BIN"
 fi
 
+# The icon, in every size macOS asks for, from the 1024 px master (see make-icon.swift).
+ICONSET=build/AppIcon.iconset
+rm -rf "$ICONSET"
+mkdir -p "$ICONSET"
+for size in 16 32 128 256 512; do
+  sips -z "$size" "$size" Resources/AppIcon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+  sips -z "$((size * 2))" "$((size * 2))" Resources/AppIcon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+rm -rf "$ICONSET"
+
 # The backstop scripts travel inside the bundle, so a downloaded app can install them:
 #   sudo SleepGuard.app/Contents/Resources/install.sh
 cp scripts/enforce.sh scripts/install.sh scripts/uninstall.sh "$APP/Contents/Resources/"
@@ -35,6 +46,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>SleepGuard</string>
   <key>CFBundleExecutable</key><string>SleepGuard</string>
   <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSUIElement</key><true/>
