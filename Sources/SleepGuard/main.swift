@@ -16,6 +16,8 @@ let expiryPath = sharedDir + "/expires-at"
 let autoOffRetryInterval: TimeInterval = 5 * 60
 /// How long the menu keeps showing the last message.
 let messageLifetime: TimeInterval = 12 * 3600
+/// "?" when the bundle carries no version, which also keeps the update check quiet.
+let installedVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
 
 @discardableResult
 func run(_ path: String, _ args: [String]) -> (status: Int32, out: String) {
@@ -91,10 +93,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// True while a privileged write is in flight, which can mean waiting at the admin prompt.
     /// A tick in that window would see the expiry file and the pmset flag out of step.
     private var writing = false
+    /// A release newer than this build, once GitHub has reported one.
+    private var availableUpdate: String?
+    private var updateCheckNotBefore: Date?
 
     private var offOnBattery: Bool {
         get { UserDefaults.standard.object(forKey: "offOnBattery") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "offOnBattery") }
+    }
+
+    /// On unless switched off with `defaults write local.sleepguard checkForUpdates -bool false`.
+    private var checksForUpdates: Bool {
+        UserDefaults.standard.object(forKey: "checkForUpdates") as? Bool ?? true
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -107,7 +117,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in self?.tick() }
     }
 
+    /// Asks GitHub for the latest release when a check is due. All an answer can do is put the
+    /// "Update available" row into the menu or take it out.
+    private func checkForUpdateIfDue() {
+        let now = Date()
+        guard updateCheckDue(installed: installedVersion, enabled: checksForUpdates, notBefore: updateCheckNotBefore, now: now) else { return }
+        // Counted as unanswered until the answer is in, so a slow request is not sent again on the next tick.
+        updateCheckNotBefore = nextUpdateCheck(after: now, answered: false)
+        fetchLatestReleaseTag { [weak self] tag in
+            guard let self, let tag else { return }
+            self.updateCheckNotBefore = nextUpdateCheck(after: now, answered: true)
+            self.availableUpdate = newerVersion(installed: installedVersion, latestTag: tag)
+        }
+    }
+
     private func tick() {
+        checkForUpdateIfDue()
         guard !writing else { return }
         state = readSleepDisabled()
         let snapshot = Snapshot(sleepDisabled: state, expiry: readExpiry(), onBattery: onBattery(),
@@ -202,6 +227,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if retryNotBefore == nil, now.timeIntervalSince(lastMessageAt) > messageLifetime { lastMessage = nil }
 
         let header = NSMenuItem()
+        let version = "v\(installedVersion)"
         switch state {
         case true?:
             let detail: String
@@ -212,15 +238,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             } else {
                 detail = "no end time set yet"
             }
-            header.view = statusHeader(glyph: .symbol("cup.and.saucer.fill"), style: .awake, title: "Keeping awake", detail: detail)
+            header.view = statusHeader(glyph: .symbol("cup.and.saucer.fill"), style: .awake, title: "Keeping awake", detail: detail, corner: version)
         case false?:
-            header.view = statusHeader(glyph: .symbol("moon.zzz.fill"), style: .sleep, title: "Sleep allowed", detail: "This Mac sleeps as usual")
+            header.view = statusHeader(glyph: .symbol("moon.zzz.fill"), style: .sleep, title: "Sleep allowed", detail: "This Mac sleeps as usual", corner: version)
         case nil:
-            header.view = statusHeader(glyph: .symbol("questionmark"), style: .neutral, title: "State unknown", detail: "Could not read the pmset setting")
+            header.view = statusHeader(glyph: .symbol("questionmark"), style: .neutral, title: "State unknown", detail: "Could not read the pmset setting", corner: version)
         }
         menu.addItem(header)
         if let lastMessage {
             menu.addItem(retryNotBefore == nil ? info(lastMessage, .symbol("info"), .neutral) : info(lastMessage, .symbol("exclamationmark"), .alert))
+        }
+        // Under the status block, close to the version in its corner. A message about the sleep state comes first.
+        if let availableUpdate {
+            menu.addItem(action("Update available: \(availableUpdate)", .symbol("arrow.down"), .neutral, #selector(openReleasesPage)))
         }
         menu.addItem(.separator())
 
@@ -241,7 +271,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // On battery with the preference on, the next tick would turn a keep-awake straight
             // back off, so the menu does not offer one.
             let blocked = offOnBattery && onBattery()
-            if blocked { menu.addItem(info("On battery: uncheck “Allow sleep when unplugged” to keep awake", .symbol("battery.25"), .neutral)) }
             menu.addItem(sectionHeader("Keep awake"))
             for item in durationItems(now: now) {
                 item.isEnabled = !blocked
@@ -254,7 +283,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         battery.state = offOnBattery ? .on : .off
         menu.addItem(battery)
         menu.addItem(.separator())
-        menu.addItem(versionItem())
         menu.addItem(action(state == true ? "Quit and allow sleep" : "Quit", .symbol("power"), .neutral, #selector(quit), key: "q"))
     }
 
@@ -278,16 +306,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func sectionHeader(_ title: String) -> NSMenuItem {
         if #available(macOS 14.0, *) { return .sectionHeader(title: title) }
         let i = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        i.isEnabled = false
-        return i
-    }
-
-    private func versionItem() -> NSMenuItem {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-        let i = NSMenuItem(title: "SleepGuard \(version)", action: nil, keyEquivalent: "")
-        let icon = NSApp.applicationIconImage.copy() as? NSImage
-        icon?.size = NSSize(width: 18, height: 18)
-        i.image = icon
         i.isEnabled = false
         return i
     }
@@ -324,6 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateButton()
     }
     @objc private func toggleBattery() { offOnBattery.toggle(); tick() }
+    @objc private func openReleasesPage() { NSWorkspace.shared.open(releasesPage) }
     @objc private func quit() {
         // Quitting always ends a keep-awake, whether or not the backstop is installed.
         // If sleep cannot be re-enabled the app stays, and the menu says why.

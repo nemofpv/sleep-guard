@@ -29,7 +29,7 @@ open build/SleepGuard-0.0.0.pkg
 
 To start SleepGuard at login, add it under System Settings → General → Login Items.
 
-To update, quit SleepGuard, install the newer package over the old one and open SleepGuard again.
+To update, quit SleepGuard, install the newer package over the old one and open SleepGuard again. SleepGuard [tells you](#update-check) when there is a newer release.
 
 ### What the installer sets up
 
@@ -37,6 +37,18 @@ Changing `disablesleep` needs root. Without help, macOS would ask for an admin p
 
 - **A sudoers rule** in `/etc/sudoers.d/sleepguard` that lets the user who ran the installer run exactly two commands without a password: `pmset -a disablesleep 0` and `pmset -a disablesleep 1`. Nothing else becomes passwordless.
 - **A backstop** in `/Library/LaunchDaemons/local.sleepguard.enforce.plist`, with its two scripts in `/Library/Application Support/SleepGuard`. It checks every 5 minutes as root and re-enables sleep once the expiry has passed. With it, the expiry holds even if the app has crashed or been force-quit.
+
+### Update check
+
+When it starts, and once a day after that, SleepGuard asks GitHub for the number of the latest release. If that is newer than the installed version, **Update available** appears at the top of the menu, under the status block, and clicking it opens the release page in the browser. Nothing is downloaded or installed on its own.
+
+This is the only use SleepGuard makes of the network. The request carries nothing about you or the Mac; GitHub sees the IP address it comes from, as with any web request. To switch the check off:
+
+```sh
+defaults write local.sleepguard checkForUpdates -bool false
+```
+
+That applies from the next start of SleepGuard at the latest. A build from source that was given no `VERSION` shows `v0.0.0` and never checks.
 
 ## Uninstall
 
@@ -48,7 +60,7 @@ To remove both at once instead of waiting:
 sudo "/Library/Application Support/SleepGuard/uninstall.sh"
 ```
 
-Left behind are the app's one preference, the folder `/Users/Shared/SleepGuard` and the installer's receipt. To clear those too:
+Left behind are the app's preferences, the folder `/Users/Shared/SleepGuard` and the installer's receipt. To clear those too:
 
 ```sh
 defaults delete local.sleepguard
@@ -73,7 +85,7 @@ While it is on, the menu bar icon is a coffee cup with the time left, and the me
 - **Add 1 hour / Add 2 hours** push the end time back.
 - **Change to** opens the same list of choices, to replace the end time without stopping first.
 
-Gold icons keep the Mac awake, blue ones let it sleep. The bottom of the menu shows the installed version.
+Gold icons keep the Mac awake, blue ones let it sleep. The installed version is in the top right corner of the menu.
 
 **Allow sleep when unplugged** (on by default) ends keep-awake within 15 seconds of the Mac going onto battery. While it is checked and the Mac is on battery, the keep-awake choices are greyed out.
 
@@ -106,9 +118,10 @@ GitHub Actions runs all three on every push that changes the sources, tests, scr
 
 | Path | Contents |
 |---|---|
-| `Sources/SleepGuard/Policy.swift` | The decisions: parsing, expiry arithmetic, what each 15-second tick should do. No I/O. |
+| `Sources/SleepGuard/Policy.swift` | The decisions: parsing, expiry arithmetic, what each 15-second tick should do, when to look for an update and whether a release is newer. No I/O. |
 | `Sources/SleepGuard/main.swift` | The menu and the I/O: `pmset`, the expiry file, the power source. |
 | `Sources/SleepGuard/MenuLook.swift` | How the menu looks: the badge icons, their colours, the status block at the top. |
+| `Sources/SleepGuard/UpdateCheck.swift` | The request to GitHub for the latest release. The only network code. |
 | `scripts/enforce.sh` | The backstop that the LaunchDaemon runs as root. |
 | `scripts/install.sh`, `uninstall.sh` | Set up and remove the sudoers rule and the backstop. From a checkout, `sudo scripts/install.sh` sets them up to stay until `sudo scripts/uninstall.sh`. |
 | `scripts/pkg/postinstall` | What the installer package runs after copying the app: `install.sh`, for the person installing. `package.sh` packs the three scripts above into the package next to it. |

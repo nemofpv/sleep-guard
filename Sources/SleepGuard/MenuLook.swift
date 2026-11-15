@@ -74,10 +74,11 @@ func badge(_ glyph: Glyph, _ style: BadgeStyle, side: CGFloat = 18) -> NSImage {
     }
 }
 
-/// The block at the top of the menu: a large badge, what the Mac is doing, and until when.
+/// The block at the top of the menu: a large badge, what the Mac is doing, and until when,
+/// with `corner` (the version) in small print at the top right.
 /// A view rather than a menu item, so it is neither dimmed like a disabled item nor
 /// highlighted like one that can be clicked.
-func statusHeader(glyph: Glyph, style: BadgeStyle, title: String, detail: String) -> NSView {
+func statusHeader(glyph: Glyph, style: BadgeStyle, title: String, detail: String, corner: String) -> NSView {
     let icon = NSImageView(image: badge(glyph, style, side: 30))
     icon.translatesAutoresizingMaskIntoConstraints = false
     icon.widthAnchor.constraint(equalToConstant: 30).isActive = true
@@ -85,6 +86,9 @@ func statusHeader(glyph: Glyph, style: BadgeStyle, title: String, detail: String
 
     let titleLabel = NSTextField(labelWithString: title)
     titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+    let cornerLabel = NSTextField(labelWithString: corner)
+    cornerLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+    cornerLabel.textColor = .tertiaryLabelColor
     let detailLabel = NSTextField(labelWithString: detail)
     detailLabel.font = .systemFont(ofSize: 11)
     detailLabel.textColor = .secondaryLabelColor
@@ -99,6 +103,19 @@ func statusHeader(glyph: Glyph, style: BadgeStyle, title: String, detail: String
     row.alignment = .centerY
     row.spacing = 9
     row.edgeInsets = NSEdgeInsets(top: 6, left: 14, bottom: 6, right: 16)
+    // The menu sizes the block through its frame. A stack view made with init(views:) ignores
+    // its frame in layout unless told otherwise, and would shrink back to the width of its content.
+    row.translatesAutoresizingMaskIntoConstraints = true
+
+    // The corner text is outside the stacks: on the title's line, at the right edge of the block
+    // however wide the menu makes it, and never closer to the title than the last constraint allows.
+    cornerLabel.translatesAutoresizingMaskIntoConstraints = false
+    row.addSubview(cornerLabel)
+    NSLayoutConstraint.activate([
+        cornerLabel.firstBaselineAnchor.constraint(equalTo: titleLabel.firstBaselineAnchor),
+        cornerLabel.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -row.edgeInsets.right),
+        cornerLabel.leadingAnchor.constraint(greaterThanOrEqualTo: titleLabel.trailingAnchor, constant: 12),
+    ])
 
     let size = row.fittingSize
     row.frame = NSRect(x: 0, y: 0, width: max(size.width, 230), height: size.height)

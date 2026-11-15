@@ -92,3 +92,49 @@ func tickAction(_ s: Snapshot, calendar: Calendar = .current) -> TickAction {
     if s.expiry == nil { return .adoptExpiry(defaultExpiry(now: s.now, calendar: calendar)) }
     return .none
 }
+
+// MARK: update check
+
+let updateCheckInterval: TimeInterval = 24 * 3600
+/// How soon to ask again when there was no usable answer: offline, or GitHub's rate limit.
+let updateCheckRetryInterval: TimeInterval = 3600
+
+/// "1.4.0", or the release tag "v1.4.0", as three numbers. Anything else is nil. Text from the
+/// network gets no further than this: the menu only ever shows the numbers.
+func parseVersion(_ text: String) -> [Int]? {
+    let parts = (text.hasPrefix("v") ? text.dropFirst() : Substring(text))
+        .split(separator: ".", omittingEmptySubsequences: false)
+    guard parts.count == 3 else { return nil }
+    var numbers: [Int] = []
+    for part in parts {
+        guard (1...9).contains(part.count), part.allSatisfy({ $0.isASCII && $0.isNumber }),
+              let number = Int(part) else { return nil }
+        numbers.append(number)
+    }
+    return numbers
+}
+
+/// The version to offer in the menu, or nil when the latest release is not newer than this build.
+func newerVersion(installed: String, latestTag: String) -> String? {
+    guard let have = parseVersion(installed), let latest = parseVersion(latestTag),
+          have.lexicographicallyPrecedes(latest) else { return nil }
+    return latest.map(String.init).joined(separator: ".")
+}
+
+/// The tag in GitHub's answer to /repos/…/releases/latest. nil when the answer is something else,
+/// such as an error message.
+func latestReleaseTag(inJSON data: Data) -> String? {
+    let answer = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    return answer?["tag_name"] as? String
+}
+
+/// Whether to ask GitHub for the latest release now. A build with no version of its own
+/// (0.0.0 from a plain build.sh or a dry run) never asks: every release would look newer.
+func updateCheckDue(installed: String, enabled: Bool, notBefore: Date?, now: Date) -> Bool {
+    guard enabled, let have = parseVersion(installed), have != [0, 0, 0] else { return false }
+    return notBefore.map { now >= $0 } ?? true
+}
+
+func nextUpdateCheck(after time: Date, answered: Bool) -> Date {
+    time.addingTimeInterval(answered ? updateCheckInterval : updateCheckRetryInterval)
+}

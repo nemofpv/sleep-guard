@@ -132,5 +132,55 @@ expect(tickAction(Snapshot(sleepDisabled: true, expiry: at(23), onBattery: true,
 expect(tickAction(Snapshot(sleepDisabled: true, expiry: nil, now: noon, retryNotBefore: at(12, 5)), calendar: helsinki),
        .adoptExpiry(at(23)), "the retry wait does not stop adopting an expiry")
 
+// MARK: update check
+
+// Release tags are v1.2.3 (release.yml); the installed version is the same without the v.
+expect(parseVersion("1.4.0"), [1, 4, 0], "an installed version reads as three numbers")
+expect(parseVersion("v1.4.0"), [1, 4, 0], "a release tag reads the same, without its v")
+expect(parseVersion("1.4"), nil, "two parts are not a version")
+expect(parseVersion("1.4.0.1"), nil, "four parts are not a version")
+expect(parseVersion("1..0"), nil, "an empty part is not a version")
+expect(parseVersion("1.4.0-beta"), nil, "a suffix is not a version")
+expect(parseVersion("1.+4.0"), nil, "a signed part is not a version")
+expect(parseVersion("vv1.4.0"), nil, "only one v is dropped")
+expect(parseVersion("1.4.0\n"), nil, "a trailing newline is not a version")
+expect(parseVersion("１.４.０"), nil, "full-width digits are not a version")
+expect(parseVersion("1.99999999999999999999.0"), nil, "a number too long for an Int is not a version")
+expect(parseVersion(""), nil, "empty text is not a version")
+
+expect(newerVersion(installed: "1.4.0", latestTag: "v1.5.0"), "1.5.0", "a newer release is offered, named without the v")
+expect(newerVersion(installed: "1.4.0", latestTag: "v1.4.0"), nil, "the installed release is not an update")
+expect(newerVersion(installed: "1.5.0", latestTag: "v1.4.0"), nil, "an older release is not an update")
+expect(newerVersion(installed: "1.9.0", latestTag: "v1.10.0"), "1.10.0", "versions compare as numbers: 1.10 is newer than 1.9")
+expect(newerVersion(installed: "1.10.0", latestTag: "v1.9.0"), nil, "versions compare as numbers: 1.9 is older than 1.10")
+expect(newerVersion(installed: "1.4.9", latestTag: "v2.0.0"), "2.0.0", "the first number outranks the others")
+expect(newerVersion(installed: "2.0.0", latestTag: "v1.9.9"), nil, "a lower first number is older whatever follows")
+// The menu shows this text, so it is put together from the numbers, not copied from the answer.
+expect(newerVersion(installed: "1.4.0", latestTag: "v01.05.00"), "1.5.0", "the offered version is rebuilt from its numbers")
+expect(newerVersion(installed: "1.4.0", latestTag: "nightly"), nil, "a tag that is not a version offers nothing")
+expect(newerVersion(installed: "?", latestTag: "v1.5.0"), nil, "an unknown installed version offers nothing")
+
+// What GitHub answers to /repos/…/releases/latest, cut down to a few of its fields.
+let releaseJSON = #"{"url": "https://api.github.com/repos/nemofpv/sleep-guard/releases/1", "html_url": "https://github.com/nemofpv/sleep-guard/releases/tag/v1.5.0", "tag_name": "v1.5.0", "name": "SleepGuard 1.5.0", "draft": false, "prerelease": false}"#
+expect(latestReleaseTag(inJSON: Data(releaseJSON.utf8)), "v1.5.0", "the tag is read from GitHub's answer")
+expect(latestReleaseTag(inJSON: Data(#"{"message": "API rate limit exceeded", "documentation_url": "https://docs.github.com/"}"#.utf8)), nil,
+       "an error answer has no tag")
+expect(latestReleaseTag(inJSON: Data(#"{"tag_name": 15}"#.utf8)), nil, "a tag that is not text is no tag")
+expect(latestReleaseTag(inJSON: Data(#"[{"tag_name": "v1.5.0"}]"#.utf8)), nil, "a list of releases is not the latest release")
+expect(latestReleaseTag(inJSON: Data("<html>Sign in</html>".utf8)), nil, "a page that is not JSON has no tag")
+expect(latestReleaseTag(inJSON: Data()), nil, "an empty answer has no tag")
+
+expect(updateCheckDue(installed: "1.4.0", enabled: true, notBefore: nil, now: noon), true, "a released build that has not asked yet asks")
+expect(updateCheckDue(installed: "1.4.0", enabled: true, notBefore: at(13), now: noon), false, "no asking before the next check is due")
+expect(updateCheckDue(installed: "1.4.0", enabled: true, notBefore: noon, now: noon), true, "the due instant itself counts as due")
+expect(updateCheckDue(installed: "1.4.0", enabled: false, notBefore: nil, now: noon), false, "switched off: never asks")
+// build.sh without VERSION, and the release workflow's dry run, give 0.0.0.
+expect(updateCheckDue(installed: "0.0.0", enabled: true, notBefore: nil, now: noon), false,
+       "a build with no version of its own never asks: every release would look newer")
+expect(updateCheckDue(installed: "?", enabled: true, notBefore: nil, now: noon), false, "an unknown installed version never asks")
+
+expect(nextUpdateCheck(after: noon, answered: true), at(12, day: 15), "after an answer the next check is a day later")
+expect(nextUpdateCheck(after: noon, answered: false), at(13), "after no answer the next check is an hour later")
+
 print(failures == 0 ? "policy: \(checks) checks passed" : "policy: \(failures) of \(checks) checks FAILED")
 exit(failures == 0 ? 0 : 1)
