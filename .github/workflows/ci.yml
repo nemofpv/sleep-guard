@@ -1,6 +1,6 @@
 name: CI
 
-# Runs the tests, a universal build and the disk image packaging on every push that can change
+# Runs the tests, a universal build and the installer packaging on every push that can change
 # the app or the test results. Pushes that touch only other files (documentation, the icon artwork, the release
 # workflow) are skipped: they cannot change the outcome, and macOS runners are billed at ten
 # times the Linux rate on private repositories.
@@ -15,7 +15,6 @@ on:
       - 'Tests/**'
       - 'scripts/**'
       - 'Resources/AppIcon.png'
-      - 'Resources/dmg-layout'
       - '.github/workflows/ci.yml'
 
 concurrency:

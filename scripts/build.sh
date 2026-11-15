@@ -34,10 +34,6 @@ done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 rm -rf "$ICONSET"
 
-# The backstop scripts travel inside the bundle, so a downloaded app can install them:
-#   sudo SleepGuard.app/Contents/Resources/install.sh
-cp scripts/enforce.sh scripts/install.sh scripts/uninstall.sh "$APP/Contents/Resources/"
-
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

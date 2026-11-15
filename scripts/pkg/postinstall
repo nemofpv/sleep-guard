@@ -1,0 +1,18 @@
+#!/bin/sh
+# Run as root by the macOS Installer once it has put SleepGuard.app into /Applications.
+# Sets up the sudoers rule and the backstop for the person installing, and tells the backstop
+# to remove itself again once the app is deleted. See scripts/install.sh.
+#
+# package.sh packs install.sh, enforce.sh and uninstall.sh into the package next to this
+# script, and they are run from there: the Installer unpacks them into a folder of root's own.
+# They are not taken from the app in /Applications, which other accounts can replace.
+set -eu
+
+# Installer.app passes the name of the person installing in USER. Under `sudo installer -pkg …`
+# that is root: then it is the person who ran sudo, or failing that whoever is logged in at
+# the screen.
+user=${USER:-}
+if [ -z "$user" ] || [ "$user" = root ]; then user=${SUDO_USER:-}; fi
+if [ -z "$user" ] || [ "$user" = root ]; then user=$(/usr/bin/stat -f %Su /dev/console); fi
+
+/bin/sh "$(/usr/bin/dirname "$0")/install.sh" --remove-with-app "$user"
